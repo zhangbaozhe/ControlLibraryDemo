@@ -1,0 +1,158 @@
+term0
+{
+  name "intermediate cost"
+  kind "quadratic"
+  type 0              ; 0 = intermediate, 1 = final
+
+  weights
+  {
+    ; state weighting
+    Q
+    {
+      scaling 1
+
+      ; position
+      (0,0) 200
+      (1,1) 200
+      (2,2) 200
+
+      ; position rate
+      (3,3) 1
+      (4,4) 1
+      (5,5) 1
+
+      ; orientation
+      (6,6) 500
+      (7,7) 500
+      (8,8) 500
+      (9,9) 500
+
+      ; others
+      (10,10) 0
+      (11,11) 0
+      (12,12) 0
+      (13,13) 0
+      (14,14) 0
+      (15,15) 0
+      (16,16) 0
+      (17,17) 0
+      (18,18) 0
+      (19,19) 0
+
+    }
+
+    R
+    {
+      scaling 1
+
+      ; Fx, Fy, Fz
+
+      (0,0) 1
+      (1,1) 10
+      (2,2) 10
+      (3,3) 10
+
+    }
+
+    x_des
+    {
+      ; position
+      (0,0) 0
+      (1,0) 0
+      (2,0) 0
+
+      ; position rate
+      (3,0) 0
+      (4,0) 0
+      (5,0) 0
+
+      ; orientation
+      (6,6)   10
+      (7,7) 10
+      (8,8) 10
+      (9,9) 10
+
+      ; others
+      (13,13) 0
+      (14,14) 0
+      (15,15) 0
+      (16,16) 0
+      (17,17) 0
+      (18,18) 0
+      (19,19) 0
+
+    }
+  }
+}
+
+
+term1
+{
+  name "final cost"
+  kind "quadratic"
+  type 1              ; 0 = intermediate, 1 = final
+
+  weights
+  {
+    ; state weighting
+    Q
+    {
+      scaling 1
+
+      ; position
+      (0,0) 200
+      (1,1) 200
+      (2,2) 200
+
+      ; position rate
+      (6,6) 10
+      (7,7) 10
+      (8,8) 10
+
+      ; orientation
+      (9,9)   100
+      (10,10) 100
+      (11,11) 100
+      (12,12) 100
+
+      ; others
+      (13,13) 0
+      (14,14) 0
+      (15,15) 0
+      (16,16) 0
+      (17,17) 0
+      (18,18) 0
+      (19,19) 0
+
+    }
+
+    x_des
+    {
+      ; position
+      (0,0) 0
+      (1,0) 0
+      (2,0) 0
+
+      ; position rate
+      (3,0) 0
+      (4,0) 0
+      (5,0) 0
+    }
+  }
+}
+
+
+; initial position
+x_0
+{
+  ; position
+  (0,0) 0
+  (1,0) 0
+  (2,0) 0
+
+  ; position rate
+  (3,0) 0
+  (4,0) 0
+  (5,0) 0
+
+}

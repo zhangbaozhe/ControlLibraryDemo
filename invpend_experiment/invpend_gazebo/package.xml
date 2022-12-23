@@ -1,0 +1,24 @@
+<package>
+  <name>invpend_gazebo</name>
+  <version>0.1.0</version>
+  <description>invpend_gazebo</description>
+  <maintainer email="linzhank@gmail.com">linZHank</maintainer>
+
+  <license>BSD</license>
+
+  <url type="repository">https://github.com/linzhank/invpend_experiment</url>
+
+  <author email="linzhank@gmail.com">linZHank</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>gazebo_plugins</run_depend>
+  <run_depend>gazebo_ros</run_depend>
+  <run_depend>gazebo_ros_control</run_depend>
+  <run_depend>rrbot_control</run_depend>
+  <run_depend>rrbot_description</run_depend>
+  <run_depend>xacro</run_depend>
+
+  <export>
+  </export>
+</package>

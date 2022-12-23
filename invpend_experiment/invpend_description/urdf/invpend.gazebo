@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<robot>
+
+  <!-- ros_control plugin -->
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <robotNamespace>/invpend</robotNamespace>
+      <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+    </plugin>
+  </gazebo>
+
+  <!-- Slider Link -->
+  <gazebo reference="slidebar">
+    <material>Gazebo/Black</material>
+  </gazebo>
+
+  <!-- Cart Link -->
+  <gazebo reference="cart">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <!-- Pole Link -->
+  <gazebo reference="pole">
+    <material>Gazebo/Orange</material>
+  </gazebo>
+
+
+</robot>

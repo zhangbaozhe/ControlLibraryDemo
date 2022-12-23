@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package>
+  <name>invpend_description</name>
+  <version>0.0.0</version>
+  <description>The invpend_description package</description>
+
+  <maintainer email="linzhank@gmail.com">LinZHank</maintainer>
+
+  <license>BSD</license>
+
+  <url type="repository">https://github.com/linZHank/invpend_experiment</url>
+
+  <author email="linzhank@gmail.com">LinZHank</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>joint_state_publisher</run_depend>
+  <run_depend>robot_state_publisher</run_depend>
+  <run_depend>rviz</run_depend>
+
+  <export>
+  </export>
+</package>

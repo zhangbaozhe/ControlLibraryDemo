@@ -1,0 +1,18 @@
+invpend:
+  # Publish all joint states -----------------------------------
+  joint_state_controller:
+    type: joint_state_controller/JointStateController
+    publish_rate: 100  
+  
+  # Effort Controller for slider2cart joint-----------------------------------
+  joint1_force_controller:
+    type: effort_controllers/JointEffortController
+    joint: slider_to_cart
+    pid: {p: 1.0, i: 0.0, d: 0.0}
+    publish_rate: 200
+  # Position Controller for cart2pole joint-----------------------------------
+  joint2_position_controller:
+    type: effort_controllers/JointPositionController
+    joint: cart_to_pole
+    pid: {p: 0.0, i: 0.0, d: 0.0}
+    publish_rate: 200

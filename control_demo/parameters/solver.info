@@ -1,0 +1,37 @@
+time_horizon 2.0
+
+nloc
+{
+    integrator RK4
+    useSensitivityIntegrator false
+    discretization Forward_euler
+    timeVaryingDiscretization false
+    dt 0.1
+    K_sim 1
+    K_shot 1
+    epsilon 1e-2
+    max_iterations 50
+    fixedHessianCorrection false
+    recordSmallestEigenvalue false
+    min_cost_improvement 1e-4
+    meritFunctionRho 0.0
+    maxDefectSum 1e-4
+    nThreads 1
+    nThreadsEigen 1
+    locp_solver HPIPM_SOLVER
+    ;locp_solver GNRICCATI_SOLVER
+    nlocp_algorithm GNMS
+    printSummary false
+    debugPrint false
+
+
+    line_search
+    {
+        active false ;
+        adaptive false ;
+        maxIterations 100 ;
+        alpha_0 10.0 ;
+        n_alpha 0.5 ;
+        debugPrint false
+    }
+}
