@@ -12,14 +12,14 @@
 
 
 
-#define ADCG_LINEARIZER
-#undef ADCG_LINEARIZER
 
 #include <chrono>
 #include <memory>
 #include <iostream>
 #include <vector>
 #include <cmath>
+
+#include <gflags/gflags.h>
 
 #include <ct/core/core.h>
 #include <ct/optcon/optcon.h>
@@ -30,6 +30,8 @@
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Float64.h>
+
+DEFINE_string(config_path, "./src/control_demo/parameters/", "The path of the configuration files");
 
 using namespace ct::core;
 using namespace ct::optcon;
@@ -52,15 +54,9 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
   using Base = ControlledSystem<state_dim, control_dim, SCALAR>;
 
   // function alias
-#ifdef ADCG_LINEARIZER
-  #define SIN CppAD::sin
-  #define COS CppAD::cos
-  #define TAN CppAD::tan
-#else
   #define SIN sin
   #define COS cos
   #define TAN tan
-#endif
 
   // constructor
   InvpendSystem(const SCALAR &cart_mass, 
@@ -87,7 +83,6 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
       I_(rhs.I_), 
       Base(rhs)
   {
-    std::cout << "I'm copied" << std::endl;
   }
 
   // deep copy
@@ -139,10 +134,6 @@ class InvpendMPC
   using State_t = StateVector<state_dim>;
   using Control_t = ControlVector<control_dim>;
   using System_t = InvpendSystem<double>; // if use code generation, the scalar needs to be ct::core::ADCodegenLinearizer<state_dim, control_dim>::ADCGScalar
-#ifdef ADCG_LINEARIZER
-  using SystemADCG_t = InvpendSystem<ct::core::ADCGScalar>;
-  using CGLinearizer_t = ct::core::ADCodegenLinearizer<state_dim, control_dim>;
-#endif
   using Q_t = Eigen::Matrix<double, state_dim, state_dim>;
   using R_t = Eigen::Matrix<double, control_dim, control_dim>;
   using TermQuadratic_t = ct::optcon::TermQuadratic<state_dim, control_dim>;
@@ -170,10 +161,6 @@ class InvpendMPC
   size_t final_term_id_;
 
   std::shared_ptr<System_t> system_ptr_;
-#ifdef ADCG_LINEARIZER
-  std::shared_ptr<SystemADCG_t> systemADCG_ptr_;
-  std::shared_ptr<CGLinearizer_t> linearizer_ptr_;
-#endif
   std::shared_ptr<Cost_t> cost_ptr_;
   std::shared_ptr<OptConProblem_t> opt_prob_ptr_;
   std::shared_ptr<NLOptConSolver_t> solver_ptr_;
@@ -186,20 +173,10 @@ class InvpendMPC
   InvpendMPC(const std::string &load_path,
           const Control_t &u_max, const Control_t &u_min, 
           const std::shared_ptr<System_t> &sys_double, 
-#ifdef ADCG_LINEARIZER
-          const std::shared_ptr<SystemADCG_t> &sys_adcg, 
-#endif
           bool verbose = false)
       : u_max_(u_max), u_min_(u_min) 
   {
     system_ptr_ = sys_double;    
-#ifdef ADCG_LINEARIZER
-    systemADCG_ptr_ = sys_adcg;
-    linearizer_ptr_ = std::make_shared<CGLinearizer_t>(systemADCG_ptr_);
-    std::cout << "compiling ..." << std::endl;
-    linearizer_ptr_->compileJIT("invpend_ADCGLib");
-    std::cout << "... done" << std::endl;
-#endif
 
     // load optimal control settings
     settings_.load(load_path + SOLVER_DIR, verbose, "nloc");
@@ -223,11 +200,7 @@ class InvpendMPC
     final_term_id_ = cost_ptr_->addFinalTerm(term_final);
 
     // construct opt problem
-#ifdef ADCG_LINEARIZER
-    opt_prob_ptr_ = std::make_shared<OptConProblem_t>(time_horizon_, x0_, system_ptr_, cost_ptr_, linearizer_ptr_);
-#else
     opt_prob_ptr_ = std::make_shared<OptConProblem_t>(time_horizon_, x0_, system_ptr_, cost_ptr_);
-#endif
 
     std::shared_ptr<BoxConstraint_t> control_input_bound(
         new BoxConstraint_t(u_min_, u_max_));
@@ -316,24 +289,10 @@ class InvpendMPC
 };
 
 
-double constrainAngle(double x){
-    x = fmod(x + M_PI, 2*M_PI);
-    if (x < 0)
-        x += 2*M_PI;
-    return x - M_PI;
-}
-
 
 int main(int argc, char **argv)
 {
-  using Scalar = ct::core::ADCGScalar;
-  const Scalar M(0.5);
-  const Scalar m(0.2);
-  const Scalar b(0.1);
-  const Scalar l(0.3);
-  const Scalar I(0.006);
-
-
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   ros::init(argc, argv, "mpc_demo_node");
   ros::NodeHandle nh;
 
@@ -370,8 +329,6 @@ int main(int argc, char **argv)
     ros::spinOnce();
   }
 
-  // std::shared_ptr<InvpendSystem<Scalar>> invpend_sys_ptr(
-      // new InvpendSystem<Scalar>(M, m, b, l, I));
 
   std::shared_ptr<InvpendSystem<double>> invpend_sys_double_ptr(
       new InvpendSystem<double>(0.5, 0.2, 0.1, 0.3, 0.006));
@@ -380,7 +337,7 @@ int main(int argc, char **argv)
   ControlVector<control_dim> u_max, u_min;
   u_max << 5.0;
   u_min << -5.0;
-  std::string load_path = "/home/baozhe/FastLab/report_ws/src/control_demo/parameters";
+  const std::string load_path = FLAGS_config_path;
 
 
   InvpendMPC mpc(load_path, u_max, u_min, invpend_sys_double_ptr);
@@ -393,11 +350,7 @@ int main(int argc, char **argv)
   auto new_policy_ptr = std::make_shared<StateFeedbackController<state_dim, control_dim>>();
   
   ros::Rate freq(100.0);
-  auto start = ros::Time::now().toSec();
   while (ros::ok() && mpc.run(CURRENT_EST, ref, new_policy_ptr)) {
-    // ROS_INFO("EST: angle: %.2f", CURRENT_EST(1));
-
-    auto t = ros::Time::now().toSec() - start;
 
     std_msgs::Float64 msg;
     auto command = new_policy_ptr->uff()[0];

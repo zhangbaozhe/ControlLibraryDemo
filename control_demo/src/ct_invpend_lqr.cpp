@@ -12,8 +12,6 @@
 
 
 
-#define ADCG_LINEARIZER
-
 #include <chrono>
 #include <memory>
 #include <iostream>
@@ -22,7 +20,6 @@
 
 #include <ct/core/core.h>
 #include <ct/optcon/optcon.h>
-#include <cppad/cppad.hpp>
 
 #include <Eigen/Core>
 
@@ -50,15 +47,9 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
   using Base = ControlledSystem<state_dim, control_dim, SCALAR>;
 
   // function alias
-#ifdef ADCG_LINEARIZER
-  #define SIN CppAD::sin
-  #define COS CppAD::cos
-  #define TAN CppAD::tan
-#else
-  #define SIN Eigen::sin
-  #define COS Eigen::cos
-  #define TAN Eigen::tan
-#endif
+  #define SIN sin
+  #define COS cos
+  #define TAN tan
 
   // constructor
   InvpendSystem(const SCALAR &cart_mass, 
@@ -78,7 +69,12 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
 
   // copy constructor
   InvpendSystem(const InvpendSystem &rhs)
-      :Base(rhs)
+      : M_(rhs.M_), 
+      m_(rhs.m_), 
+      b_(rhs.m_), 
+      l_(rhs.l_), 
+      I_(rhs.I_), 
+      Base(rhs)
   {
   }
 
@@ -102,6 +98,13 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
     // theta ddot
     derivative(3) = 1 / (I_ + m_ * l_ * l_) * 
         (m_ * G * l_ * SIN(state(2)) - m_ * l_ * derivative(1) * COS(state(2)));
+
+    // linearized version
+    // x ddot
+    // derivative(1) = 1 / ( M_ + m_ - m_ * m_ * l_ * l_ / (I_ + m_ * l_ * l_) ) * 
+    //     ( control(0) - b_ * state(1) - m_ * m_ * l_ * l_ * G * state(2) / (I_ + m_ * l_ * l_) ); 
+    // theta ddot
+    // derivative(3) = ( m_ * G * l_ * state(2) - m_ * l_ * derivative(1) ) / (I_ + m_ * l_ * l_);
   }
  private:
   SCALAR M_;
@@ -121,14 +124,11 @@ double constrainAngle(double x){
 
 int main(int argc, char **argv)
 {
-  
-  using Scalar = ct::core::ADCGScalar;
-
-  const Scalar M(0.5);
-  const Scalar m(0.2);
-  const Scalar b(0.1);
-  const Scalar l(0.3);
-  const Scalar I(0.006);
+  const double M(0.5);
+  const double m(0.2);
+  const double b(0.1);
+  const double l(0.3);
+  const double I(0.006);
 
   ros::init(argc, argv, "lqr_demo_node");
   ros::NodeHandle nh;
@@ -166,16 +166,11 @@ int main(int argc, char **argv)
     ros::spinOnce();
   }
 
-  std::shared_ptr<InvpendSystem<Scalar>> invpend_sys_ptr(
-      new InvpendSystem<Scalar>(M, m, b, l, I));
+  std::shared_ptr<InvpendSystem<double>> invpend_sys_ptr(
+      new InvpendSystem<double>(M, m, b, l, I));
 
-  ROS_INFO("HERE");
 
-  ct::core::ADCodegenLinearizer<state_dim, control_dim> adLinearizer(invpend_sys_ptr);
-
-  std::cout << "compiling ..." << std::endl;
-  adLinearizer.compileJIT("invpend_sys");
-  std::cout << "... done" << std::endl;
+  ct::core::SystemLinearizer<state_dim, control_dim> Linearizer(invpend_sys_ptr);
 
   StateVector<state_dim> x;
   x.setZero();
@@ -183,19 +178,16 @@ int main(int argc, char **argv)
   u.setZero();
 
   double t = 0.0;
-  auto A = adLinearizer.getDerivativeState(x, u, t);
-  auto B = adLinearizer.getDerivativeControl(x, u, t);
+  auto A = Linearizer.getDerivativeState(x, u, t);
+  auto B = Linearizer.getDerivativeControl(x, u, t);
 
-  A = A.unaryExpr([](double v) { return std::isfinite(v) ? v : (v > 0 ? std::numeric_limits<double>::max() : -std::numeric_limits<double>::max()); });
-  B = B.unaryExpr([](double v) { return std::isfinite(v) ? v : (v > 0 ? std::numeric_limits<double>::max() : -std::numeric_limits<double>::max()); });
-  
 
   ct::optcon::TermQuadratic<state_dim, control_dim> quadraticCost;
   Eigen::Matrix<double, 4, 4> Q;
-  Q << 5000.0, 0, 0, 0, 
-        0, 0.0, 0, 0, 
-        0, 0, 100.0, 0, 
-        0, 0, 0, 0;
+  Q << 100.0, 0, 0, 0, 
+        0, 1.0, 0, 0, 
+        0, 0, 50000.0, 0, 
+        0, 0, 0, 1;
   Eigen::Matrix<double, 1, 1> R;
   R << 1.0;
   ct::optcon::LQR<state_dim, control_dim> lqrSolver;
@@ -214,21 +206,6 @@ int main(int argc, char **argv)
   ros::Rate freq(100.0);
   auto start = ros::Time::now().toSec();
   while (ros::ok()) {
-    // ROS_INFO("EST: angle: %.2f", CURRENT_EST(1));
-
-
-    auto t = ros::Time::now().toSec() - start;
-
-    // A = adLinearizer.getDerivativeState(CURRENT_EST, u, t);
-    // B = adLinearizer.getDerivativeControl(CURRENT_EST, u, t);
-
-    // A = A.unaryExpr([](double v) { return std::isfinite(v) ? v : (v > 0 ? std::numeric_limits<double>::max() : -std::numeric_limits<double>::max()); });
-    // B = B.unaryExpr([](double v) { return std::isfinite(v) ? v : (v > 0 ? std::numeric_limits<double>::max() : -std::numeric_limits<double>::max()); });
-
-    // lqrSolver.compute(Q, R, A, B, K);
-    // K(0, 2) = -K(0, 2);
-    // K(0, 3) = -K(0, 3);
-    // std::cout << "LQR gain matrix:" << std::endl << K << std::endl;
 
     u = -K * CURRENT_EST;
 

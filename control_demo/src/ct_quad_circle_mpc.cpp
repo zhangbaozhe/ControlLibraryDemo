@@ -10,20 +10,15 @@
  */
 
 
-/* 
- * This define is necessary since I dont know why control toolbox pacakge cannot find its dependency 
- * `HPIPM' in CMake and then define `HPIPM' during build time. If this is not defined, the bounding
- * box constraints cannot be compiled.
- */
 
-// This defination works for using auto diffrentiate code generating tool provided by control toolbox
-#define ADCG_LINEARIZER
 
 #include <chrono>
 #include <memory>
 #include <iostream>
 #include <vector>
 #include <cmath>
+
+#include <gflags/gflags.h>
 
 #include <ct/core/core.h>
 #include <ct/core/systems/continuous_time/linear/ADCodegenLinearizer.h>
@@ -37,6 +32,8 @@
 #include <gazebo_msgs/ModelStates.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/Pose.h>
+
+DEFINE_string(config_path, "./src/control_demo/parameters/", "The path of the configuration files");
 
 using namespace ct::core;
 using namespace ct::optcon;
@@ -97,18 +94,6 @@ class QuadSystem final : public ControlledSystem<state_dim, control_dim, SCALAR>
                                  const ControlVector<control_dim, SCALAR> &control,
                                  StateVector<state_dim, SCALAR> &derivative) override
   {
-#ifdef ADCG_LINEARIZER
-    derivative(0) = state(3); // vx
-    derivative(1) = state(4); // vy
-    derivative(2) = state(5); // vz
-    derivative(3) = 2 * ( state(6) * state(8) + state(7) * state(9) ) * control(0); // ax
-    derivative(4) = 2 * ( state(8) * state(9) - state(6) * state(7) ) * control(0); // ay
-    derivative(5) = ( 1 - 2 * state(7) * state(7) - 2 * state(8) * state(8) ) * control(0) - g; // az
-    derivative(6) = 0.5 * ( - control(1) * state(7) - control(2) * state(8) - control(3) * state(9));
-    derivative(7) = 0.5 * ( control(1) * state(6) + control(3) * state(8) - control(2) * state(9));
-    derivative(8) = 0.5 * ( control(2) * state(6) - control(3) * state(7) + control(1) * state(9));
-    derivative(9) = 0.5 * ( control(3) * state(6) + control(2) * state(7) - control(1) * state(8));
-#else
     Eigen::Quaterniond q_WB(state(6), state(7), state(8), state(9));
     Eigen::Vector3d temp = q_WB * Eigen::Vector3d(0, 0, control(0));
     Eigen::Matrix4d Lambda;
@@ -128,7 +113,6 @@ class QuadSystem final : public ControlledSystem<state_dim, control_dim, SCALAR>
     derivative(7) = temp_vector(1);
     derivative(8) = temp_vector(2);
     derivative(9) = temp_vector(3);
-#endif
   }
 };
 
@@ -146,10 +130,6 @@ class QuadMPC
   using State_t = StateVector<state_dim>;
   using Control_t = ControlVector<control_dim>;
   using System_t = QuadSystem<double>; // if use code generation, the scalar needs to be ct::core::ADCodegenLinearizer<state_dim, control_dim>::ADCGScalar
-#ifdef ADCG_LINEARIZER
-  using SystemADCG_t = QuadSystem<ct::core::ADCGScalar>;
-  using CGLinearizer_t = ct::core::ADCodegenLinearizer<state_dim, control_dim>;
-#endif
   using Q_t = Eigen::Matrix<double, state_dim, state_dim>;
   using R_t = Eigen::Matrix<double, control_dim, control_dim>;
   using TermQuadratic_t = ct::optcon::TermQuadratic<state_dim, control_dim>;
@@ -178,10 +158,6 @@ class QuadMPC
   size_t final_term_id_;
 
   std::shared_ptr<System_t> system_ptr_;
-#ifdef ADCG_LINEARIZER
-  std::shared_ptr<SystemADCG_t> systemADCG_ptr_;
-  std::shared_ptr<CGLinearizer_t> linearizer_ptr_;
-#endif
   std::shared_ptr<Cost_t> cost_ptr_;
   std::shared_ptr<OptConProblem_t> opt_prob_ptr_;
   std::shared_ptr<NLOptConSolver_t> solver_ptr_;
@@ -197,13 +173,6 @@ class QuadMPC
       : u_max_(u_max), u_min_(u_min)
   {
     system_ptr_ = std::make_shared<System_t>();    
-#ifdef ADCG_LINEARIZER
-    systemADCG_ptr_ = std::make_shared<SystemADCG_t>();
-    linearizer_ptr_ = std::make_shared<CGLinearizer_t>(systemADCG_ptr_);
-    std::cout << "compiling ..." << std::endl;
-    linearizer_ptr_->compileJIT("Quad_ADCGLib");
-    std::cout << "... done" << std::endl;
-#endif
     integrator_ptr_ = std::make_shared<Integrator_t>(system_ptr_, ct::core::IntegrationType::RK4CT);
 
     // load optimal control settings
@@ -228,11 +197,7 @@ class QuadMPC
     final_term_id_ = cost_ptr_->addFinalTerm(term_final);
 
     // construct opt problem
-#ifdef ADCG_LINEARIZER
-    opt_prob_ptr_ = std::make_shared<OptConProblem_t>(time_horizon_, x0_, system_ptr_, cost_ptr_, linearizer_ptr_);
-#else
     opt_prob_ptr_ = std::make_shared<OptConProblem_t>(time_horizon_, x0_, system_ptr_, cost_ptr_);
-#endif
     solver_ptr_ = std::make_shared<NLOptConSolver_t>(*opt_prob_ptr_, settings_);
 
     std::shared_ptr<BoxConstraint_t> control_input_bound(
@@ -494,12 +459,13 @@ ControlVector2AttitudeTarget(const ControlVector<control_dim> &u)
 
 int main(int argc, char **argv)
 {
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   ros::init(argc, argv, "mpc_demo_node");
   ros::NodeHandle nh;
 
   StateVector<state_dim> CURRENT_QUAD_EST;
 
-  std::string load_path = "/home/vm/control_ws/src/control_demo/parameters";
+  const std::string load_path = FLAGS_config_path;
 
   ros::Subscriber gazebo_model_states_sub = nh.subscribe<gazebo_msgs::ModelStates>(
       GAZEBO_MODELS_TOPIC, 1,
@@ -578,12 +544,6 @@ int main(int argc, char **argv)
     mpc_controller.run(CURRENT_QUAD_EST, x_ref, new_policy_ptr, x_predicted);
     auto command = new_policy_ptr->uff()[0];
 
-#ifdef ADCG_LINEARIZER
-#ifdef ADCG_LOG
-    std::cout << "State matrix\n" << mpc_controller.linearizer_ptr_->getDerivativeState(CURRENT_QUAD_EST, command) << std::endl;
-    std::cout << "Control matrix\n" << mpc_controller.linearizer_ptr_->getDerivativeControl(CURRENT_QUAD_EST, command) << std::endl;
-#endif
-#endif
 
     mavros_attitude_pub.publish(ControlVector2AttitudeTarget(command));
     predicted_path_pub.publish(StateVectorArray2Path(new_policy_ptr->x_ref()));

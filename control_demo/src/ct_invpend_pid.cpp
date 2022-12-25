@@ -4,7 +4,7 @@
  *        The position of the inverted pendulum will stay around 0.
  *        The pole of the inverted pendulum will staty still during the control process (theta = pi/2). 
  *        The control input is force F applied on the cart of the inverted pendulum.
- *        The state can be [x, theta, x_dot, theta_dot]
+ *        The state can be [x, x_dot, theta, theta_dot]
  * Note: Only control theta, a SISO controller, not working
  * ================================================================================================
  * Author: Baozhe Zhang
@@ -12,7 +12,6 @@
  */
 
 
-#define ADCG_LINEARIZER
 
 #include <chrono>
 #include <memory>
@@ -47,6 +46,11 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
   static const size_t CONTROL_DIM = control_dim;
   using Base = ControlledSystem<state_dim, control_dim, SCALAR>;
 
+  // function alias
+  #define SIN sin
+  #define COS cos
+  #define TAN tan
+
   // constructor
   InvpendSystem(const SCALAR &cart_mass, 
       const SCALAR &pend_mass, 
@@ -65,7 +69,12 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
 
   // copy constructor
   InvpendSystem(const InvpendSystem &rhs)
-      :Base(rhs)
+      : M_(rhs.M_), 
+      m_(rhs.m_), 
+      b_(rhs.m_), 
+      l_(rhs.l_), 
+      I_(rhs.I_), 
+      Base(rhs)
   {
   }
 
@@ -82,13 +91,20 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
     derivative(0) = state(1);
     // theta dot
     derivative(2) = state(3);
-    // theta ddot
-    derivative(3) = m_ * l_ * Eigen::sin(state(2)) / 
-        ((M_ + m_) * (I_ + m_ * l_ * l_ * Eigen::cos(state(2)) * Eigen::cos(state(2)))) * 
-        (control(0) - (M_ + m_) / Eigen::tan(state(2)) * G - b_ * state(1) + m_ * l_ * Eigen::cos(state(2)) * state(3) * state(3));
     // x ddot
-    derivative(1) = 1.0 / (M_ + m_) * 
-        (control(0) - b_ * state(1) + m_ * l_ * Eigen::cos(state(2)) * state(3) * state(3) + m_ * l_ * Eigen::sin(state(2)) * derivative(4));
+    derivative(1) = 
+        1 / ( M_ + m_ - (m_ * m_ * l_ * l_ * COS(state(2)) * COS(state(2))) / (I_ + m_ * l_ * l_) ) * 
+        ( control(0) - b_ * state(1) + m_ * l_ * SIN(state(2)) * state(3) * state(3) - m_ * l_ * COS(state(2)) * m_ * G * l_ * SIN(state(2)) / (I_ + m_ * l_ * l_) );
+    // theta ddot
+    derivative(3) = 1 / (I_ + m_ * l_ * l_) * 
+        (m_ * G * l_ * SIN(state(2)) - m_ * l_ * derivative(1) * COS(state(2)));
+
+    // linearized version
+    // x ddot
+    // derivative(1) = 1 / ( M_ + m_ - m_ * m_ * l_ * l_ / (I_ + m_ * l_ * l_) ) * 
+    //     ( control(0) - b_ * state(1) - m_ * m_ * l_ * l_ * G * state(2) / (I_ + m_ * l_ * l_) ); 
+    // theta ddot
+    // derivative(3) = ( m_ * G * l_ * state(2) - m_ * l_ * derivative(1) ) / (I_ + m_ * l_ * l_);
   }
  private:
   SCALAR M_;
@@ -102,7 +118,6 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
 
 int main(int argc, char **argv)
 {
-  const double THETA_SETPOINT = M_PI / 2;
 
   ros::init(argc, argv, "pid_demo_node");
   ros::NodeHandle nh;
@@ -142,11 +157,11 @@ int main(int argc, char **argv)
 
   PIDController<double>::parameters_t pid_params;
   pid_params.dt = 0.01;
-  pid_params.k_p = 1;
+  pid_params.k_p = 10;
   pid_params.k_i = 1;
   pid_params.k_d = 1;
-  pid_params.uMax = 50;
-  pid_params.uMin = -50;
+  pid_params.uMax = 2;
+  pid_params.uMin = -2;
   PIDController<double>::setpoint_t pid_setpoint;
   pid_setpoint.stateDesired_ = 0;
   PIDController<double> pid_theta_controller(pid_params, pid_setpoint);
