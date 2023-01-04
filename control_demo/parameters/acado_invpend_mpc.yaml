@@ -1,0 +1,11 @@
+Q_x:              1
+Q_x_dot:          1 
+Q_theta:          5
+Q_theta_dot:      1
+
+R_u:              1
+
+u_min:            -1
+u_max:            1
+
+print_info:       true

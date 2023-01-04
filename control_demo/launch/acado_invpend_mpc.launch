@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="control_demo" type="acado_invpend_mpc" name="acado_invpend_mpc" output="screen">
+    <rosparam file="$(find control_demo)/parameters/acado_invpend_mpc.yaml" />
+  </node>
+</launch>

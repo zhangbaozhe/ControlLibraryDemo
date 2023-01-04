@@ -1,3 +1,11 @@
+/*
+ * File: invpend_model.cpp
+ * Description: The code generation program for using ACADO MPC.
+ * ================================================================================================
+ * Author: Baozhe Zhang
+ * Date created: Dec 25, 2022
+ */
+
 #include <memory>
 #include <acado_optimal_control.hpp>
 #include <acado_code_generation.hpp>
@@ -19,18 +27,22 @@ int main() {
   const double G        = 9.8;     
   const double t_start  = 0.0;
   const double t_end    = 2.0;
-  const double dt       = 0.01;
+  const double dt       = 0.1;
   const int N           = round(t_end / dt);
   const double u_max    = 2.0;
   const double u_min    = -2.0;
 
   f << dot(x)         == x_dot;
-  f << dot(x_dot)     == 1 / ( M + m - (m * m * l * l * cos(theta) * cos(theta)) / (I + m * l * l) ) * 
-        ( u - b * x_dot + m * l * sin(theta) * theta_dot * theta_dot - m * l * cos(theta) * m * G * l * sin(theta) / (I + m * l * l) );
+  // f << dot(x_dot)     == 1 / ( M + m - (m * m * l * l * cos(theta) * cos(theta)) / (I + m * l * l) ) * 
+  //       ( u - b * x_dot + m * l * sin(theta) * theta_dot * theta_dot - m * l * cos(theta) * m * G * l * sin(theta) / (I + m * l * l) );
+  f << dot(x_dot) == 1 / (M + m - m * m * l * l / (I + m * l * l)) * 
+      (u - b * x_dot - m * m * l * l * G * theta);
   f << dot(theta)     == theta_dot;
-  f << dot(theta_dot) == 1 / (I + m * l * l) * 
-        (m * G * l * sin(theta) - m * l * (1 / ( M + m - (m * m * l * l * cos(theta) * cos(theta)) / (I + m * l * l) ) * 
-        ( u - b * x_dot + m * l * sin(theta) * theta_dot * theta_dot - m * l * cos(theta) * m * G * l * sin(theta) / (I + m * l * l) )) * cos(theta));
+  // f << dot(theta_dot) == 1 / (I + m * l * l) * 
+  //       (m * G * l * sin(theta) - m * l * (1 / ( M + m - (m * m * l * l * cos(theta) * cos(theta)) / (I + m * l * l) ) * 
+  //       ( u - b * x_dot + m * l * sin(theta) * theta_dot * theta_dot - m * l * cos(theta) * m * G * l * sin(theta) / (I + m * l * l) )) * cos(theta));
+  f << dot(theta_dot) == (m * G * l * theta - m * l * (1 / (M + m - m * m * l * l / (I + m * l * l)) * 
+      (u - b * x_dot - m * m * l * l * G * theta))) / (I + m * l * l);
 
 
   h << x << x_dot << theta << theta_dot << u;
@@ -60,6 +72,7 @@ int main() {
   mpc.set(NUM_INTEGRATOR_STEPS,   N);
   mpc.set(QP_SOLVER,              QP_QPOASES);          // free, source code
   mpc.set(HOTSTART_QP,            YES);
+  mpc.set(LEVENBERG_MARQUARDT,    1.0);                 // Regularization
   mpc.set(CG_USE_OPENMP,                    YES);       // paralellization
   mpc.set(CG_HARDCODE_CONSTRAINT_VALUES,    NO);        // set on runtime
   mpc.set(CG_USE_VARIABLE_WEIGHTING_MATRIX, YES);       // time-varying costs
