@@ -26,6 +26,10 @@ Next clone this repo as `src` folder
 $ git clone https://github.com/zhangbaozhe/ControlLibraryDemo.git src
 ```
 Then install the following dependencies:
+- gflags:
+  ```bash
+  $ sudo apt install libgflags-dev
+  ```
 - catkin tools: 
   ```bash
   $ sudo apt install python-catkin-tools
