@@ -1,6 +1,6 @@
 /*
  * File： ct_quad_circle_mpc.cpp
- * Description: Use `ct_optcon' package to run a demo MPC on iris quadrotor.
+ * Description: Use `ct_optcon` package to run a demo MPC on iris quadrotor.
  *      The quadrotor will follow a predefined circle trajectory.
  *      The control input is [T, w_x, w_y, w_z].
  *      The state is [x, y, z, x_dot, y_dot, z_dot, q_w, q_x, y_y, q_z].
@@ -306,6 +306,9 @@ class QuadMPC
 
 
 /* ============== Utility functions ============== */
+
+// Use differential flatness to compute the circle trajectory
+// Paper reference: D. Mellinger and V. Kumar, “Minimum snap trajectory generation and control for quadrotors,” in 2011 IEEE International Conference on Robotics and Automation, Shanghai, China, May 2011, pp. 2520–2525. doi: 10.1109/ICRA.2011.5980409.
 
 StateVectorArray<state_dim>
 GenerateCircleTrajectory(size_t sample_num, double R, double omega, double duration, 

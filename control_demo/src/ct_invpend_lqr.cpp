@@ -1,8 +1,8 @@
 /*
  * File: ct_invpend_lqr.cpp
- * Description: on an inverted pendulum.
+ * Description: Use linearizer and LQR solver from ct to perform full-state feedback control on an inverted pendulum.
  *        The position of the inverted pendulum will stay around 0.
- *        The pole of the inverted pendulum will staty still during the control process. 
+ *        The pole of the inverted pendulum will stay still during the control process. 
  *        The control input is force F applied on the cart of the inverted pendulum.
  *        The state can be [x, x_dot, theta, theta_dot]
  * ================================================================================================
@@ -68,6 +68,7 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
   }
 
   // copy constructor
+  // VITAL
   InvpendSystem(const InvpendSystem &rhs)
       : M_(rhs.M_), 
       m_(rhs.m_), 
@@ -114,31 +115,30 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
   SCALAR I_;
 };
 
-double constrainAngle(double x){
-    x = fmod(x + M_PI, 2*M_PI);
-    if (x < 0)
-        x += 2*M_PI;
-    return x - M_PI;
-}
-
-
 int main(int argc, char **argv)
 {
+  // Define physics parameters
   const double M(0.5);
   const double m(0.2);
   const double b(0.1);
   const double l(0.3);
   const double I(0.006);
 
+  // Initialize the ros node
   ros::init(argc, argv, "lqr_demo_node");
   ros::NodeHandle nh;
 
+  // Current estimation of the cart and pole
+  // lifetime: till the end
   StateVector<state_dim> CURRENT_EST;
 
+  // Command publisher (publishing force)
   ros::Publisher effort_pub = nh.advertise<std_msgs::Float64>(
     CONTROL_TOPIC, 1
   );
 
+  // Estimation subscriber
+  // Callback function using lambda expression
   ros::Subscriber joint_states_sub = nh.subscribe<sensor_msgs::JointState>(
       JOINT_TOPIC, 1, 
       [&](const sensor_msgs::JointState::ConstPtr &msg_ptr)
@@ -162,14 +162,17 @@ int main(int argc, char **argv)
         CURRENT_EST(3) = msg_ptr->velocity.at(pole_index);
       });
 
+  // Wait until we connect to ros master and have the estimation coming in
   while (!joint_states_sub.getNumPublishers()) {
     ros::spinOnce();
   }
 
+  // System pointer
   std::shared_ptr<InvpendSystem<double>> invpend_sys_ptr(
       new InvpendSystem<double>(M, m, b, l, I));
 
 
+  // System linearizer (this uses numerical way)
   ct::core::SystemLinearizer<state_dim, control_dim> Linearizer(invpend_sys_ptr);
 
   StateVector<state_dim> x;
@@ -182,7 +185,6 @@ int main(int argc, char **argv)
   auto B = Linearizer.getDerivativeControl(x, u, t);
 
 
-  ct::optcon::TermQuadratic<state_dim, control_dim> quadraticCost;
   Eigen::Matrix<double, 4, 4> Q;
   Q << 100.0, 0, 0, 0, 
         0, 1.0, 0, 0, 
@@ -204,7 +206,7 @@ int main(int argc, char **argv)
   
   
   ros::Rate freq(100.0);
-  auto start = ros::Time::now().toSec();
+  // main loop
   while (ros::ok()) {
 
     u = -K * CURRENT_EST;

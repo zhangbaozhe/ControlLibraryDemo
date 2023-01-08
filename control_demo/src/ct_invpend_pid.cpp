@@ -1,6 +1,6 @@
 /*
  * File: ct_invpend_pid.cpp
- * Description: Use PID class from `ct_core' to run a demo PID controller on an inverted pendulum.
+ * Description: Use PID class from `ct_core` to run a demo PID controller on an inverted pendulum.
  *        The position of the inverted pendulum will stay around 0.
  *        The pole of the inverted pendulum will staty still during the control process (theta = pi/2). 
  *        The control input is force F applied on the cart of the inverted pendulum.

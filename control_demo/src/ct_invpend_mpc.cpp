@@ -1,6 +1,6 @@
 /*
  * File: ct_invpend_mpc.cpp
- * Description: on an inverted pendulum.
+ * Description: CT MPC on an inverted pendulum.
  *        The position of the inverted pendulum will stay around 0.
  *        The pole of the inverted pendulum will staty still during the control process. 
  *        The control input is force F applied on the cart of the inverted pendulum.
@@ -45,12 +45,14 @@ const size_t state_dim = 4;
 const size_t control_dim = 1;
 const double G = 9.81;
 
+// Inverted pendulum system class
 template <typename SCALAR>
 class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCALAR>
 {
  public: 
   static const size_t STATE_DIM = state_dim;
   static const size_t CONTROL_DIM = control_dim;
+  // Type alias
   using Base = ControlledSystem<state_dim, control_dim, SCALAR>;
 
   // function alias
@@ -121,23 +123,34 @@ class InvpendSystem final : public ControlledSystem<state_dim, control_dim, SCAL
   SCALAR I_;
 };
 
+// MPC wrapped class
 class InvpendMPC
 {
  public: 
   static const size_t STATE_DIM = state_dim;
   static const size_t CONTROL_DIM = control_dim;
+  // parameter name
   const std::string SOLVER_DIR = "/invpend_solver.info";
   const std::string COST_DIR = "/invpend_cost.info";
 
+  // optimal control problem alias
   using OptConProblem_t = ContinuousOptConProblem<state_dim, control_dim>;
+  // solver alias
   using NLOptConSolver_t = NLOptConSolver<state_dim, control_dim>;
+  // state alias
   using State_t = StateVector<state_dim>;
+  // control alias
   using Control_t = ControlVector<control_dim>;
+  // system alias
   using System_t = InvpendSystem<double>; // if use code generation, the scalar needs to be ct::core::ADCodegenLinearizer<state_dim, control_dim>::ADCGScalar
+
   using Q_t = Eigen::Matrix<double, state_dim, state_dim>;
   using R_t = Eigen::Matrix<double, control_dim, control_dim>;
+
   using TermQuadratic_t = ct::optcon::TermQuadratic<state_dim, control_dim>;
+
   using Cost_t = CostFunctionAnalytical<state_dim, control_dim>;
+
   using Setting_t = NLOptConSettings;
   using BoxConstraint_t = ControlInputConstraint<state_dim, control_dim>;
   using MPC_t = MPC<NLOptConSolver_t>;
@@ -292,10 +305,14 @@ class InvpendMPC
 
 int main(int argc, char **argv)
 {
+  // Google command line argument library
+  // parsing the command line argument
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize ROS node
   ros::init(argc, argv, "mpc_demo_node");
   ros::NodeHandle nh;
 
+  // Current estimation
   StateVector<state_dim> CURRENT_EST;
 
   ros::Publisher effort_pub = nh.advertise<std_msgs::Float64>(
@@ -325,11 +342,13 @@ int main(int argc, char **argv)
         CURRENT_EST(3) = msg_ptr->velocity.at(pole_index);
       });
 
+  // Wait
   while (!joint_states_sub.getNumPublishers()) {
     ros::spinOnce();
   }
 
 
+  // System pointer
   std::shared_ptr<InvpendSystem<double>> invpend_sys_double_ptr(
       new InvpendSystem<double>(0.5, 0.2, 0.1, 0.3, 0.006));
 
@@ -340,16 +359,21 @@ int main(int argc, char **argv)
   const std::string load_path = FLAGS_config_path;
 
 
+  // Define MPC instance
   InvpendMPC mpc(load_path, u_max, u_min, invpend_sys_double_ptr);
 
+  // MPC window horizon
   size_t window_num = mpc.K_ + 1;
+  // Define reference
   StateVectorArray<state_dim> ref;
   for (size_t i = 0; i < window_num; i++) {
     ref.push_back(StateVector<state_dim>::Zero());
   }
+  // Define the policy pointer 
   auto new_policy_ptr = std::make_shared<StateFeedbackController<state_dim, control_dim>>();
   
   ros::Rate freq(100.0);
+  // Main loop
   while (ros::ok() && mpc.run(CURRENT_EST, ref, new_policy_ptr)) {
 
     std_msgs::Float64 msg;

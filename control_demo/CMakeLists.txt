@@ -100,11 +100,11 @@ target_link_libraries(ct_invpend_mpc_node
   ct_optcon
   gflags)
 
-add_executable(acado_invpend_mpc
+add_executable(acado_invpend_mpc_node
   src/acado_invpend_mpc.cpp)
-target_include_directories(acado_invpend_mpc PUBLIC
+target_include_directories(acado_invpend_mpc_node PUBLIC
   ${PROJECT_SOURCE_DIR}/acado_invpend_model)
-target_link_libraries(acado_invpend_mpc
+target_link_libraries(acado_invpend_mpc_node
   acado_invpend_mpc_dep
   ${catkin_LIBRARIES})
 
