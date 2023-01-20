@@ -33,6 +33,8 @@ Then install the following dependencies:
 - catkin tools: 
   ```bash
   $ sudo apt install python-catkin-tools
+  or
+  $ sudo apt install python3-catkin-tools
   ```
 - Control Toolbox dependencies: 
   - `HPIPM & blasfeo`: Go to `src/control-toolbox/ct`
@@ -43,6 +45,12 @@ Then install the following dependencies:
 - invpend_experiment dependencies: 
   ```bash
   $ sudo apt install ros-noetic-ros-control ros-noetic-ros-controllers ros-noetic-gazebo-ros ros-noetic-gazebo-ros-control
+  ```
+- mavros: 
+  ```bash
+  $ sudo apt-get install ros-noetic-mavros ros-noetic-mavros-extras
+  $ wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
+  $ sudo bash ./install_geographiclib_datasets.sh 
   ```
 
 In the workspace folder: 

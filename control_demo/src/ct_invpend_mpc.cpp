@@ -23,7 +23,6 @@
 
 #include <ct/core/core.h>
 #include <ct/optcon/optcon.h>
-#include <cppad/cppad.hpp>
 
 #include <Eigen/Core>
 

@@ -12,7 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
   ct_core
   ct_optcon
   roscpp
+  mavros_msgs
 )
+
+
 
 find_package(gflags REQUIRED)
 
@@ -68,7 +71,7 @@ target_include_directories(acado_invpend_mpc_dep PUBLIC
   ${PROJECT_SOURCE_DIR}/../acado/external_packages/qpoases/SRC)
 target_link_libraries(acado_invpend_mpc_dep ${catkin_LIBRARIES})
 
-
+# if you have installed mavros, you can compile
 add_executable(ct_quad_circle_mpc_node
   src/ct_quad_circle_mpc.cpp)
 target_link_libraries(ct_quad_circle_mpc_node
