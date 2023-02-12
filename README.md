@@ -1,7 +1,6 @@
-# Code Repo for Tech Talk: Introducing Two Control Libraries -- Control Toolbox and ACADO Toolkit
+# Code Repo for Tutorial: Introducing Two Control Libraries -- Control Toolbox and ACADO Toolkit
 
-This is the ROS workspace source repo of the tech talk I gave in Jan, 2023.
-It contains the following packages: 
+This repo contains the following packages: 
 - `control-toolbox` (modified from upstream): from https://github.com/ethz-adrl/control-toolbox
   - `ct`: meta package
   - `ct_core`: core library
